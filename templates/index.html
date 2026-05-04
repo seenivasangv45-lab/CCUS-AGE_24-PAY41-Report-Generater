@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AGE_24 Processor</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #00d4aa;
+      --accent2: #0096ff;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --error: #f85149;
+      --success: #3fb950;
+      --warning: #d29922;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 780px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 40px;
+      border-left: 3px solid var(--accent);
+      padding-left: 18px;
+    }
+    header .tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-header .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .card-body { padding: 24px 20px; }
+
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 212, 170, 0.05);
+    }
+    #drop-zone .icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    #drop-zone .main-text {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    #drop-zone .sub-text {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #drop-zone .sub-text span {
+      color: var(--accent);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    #file-input { display: none; }
+
+    #selected-file {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0, 212, 170, 0.08);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 16px;
+    }
+    #selected-file .file-icon { font-size: 22px; }
+    #selected-file .file-info { flex: 1; }
+    #selected-file .file-name {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    #selected-file .file-size {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    #clear-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    #clear-btn:hover { color: var(--error); }
+
+    /* ── Date range row ─────────────────────────────────────────────────────── */
+    .date-range-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .date-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .date-field label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .date-field input[type="date"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      padding: 9px 12px;
+      width: 100%;
+      transition: border-color 0.2s;
+      /* Chrome/Edge show a calendar icon; colorize it */
+      color-scheme: dark;
+    }
+    .date-field input[type="date"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .date-range-hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    /* ── end date range ─────────────────────────────────────────────────────── */
+
+    /* Process button */
+    #process-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    #process-btn:hover:not(:disabled) {
+      background: #00f0c0;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+    }
+    #process-btn:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Progress bar */
+    #progress-wrap {
+      display: none;
+      margin-top: 16px;
+    }
+    .progress-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .progress-bar-bg {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0%   { filter: brightness(1); }
+      50%  { filter: brightness(1.3); }
+      100% { filter: brightness(1); }
+    }
+
+    /* Alert */
+    .alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      border-left: 3px solid;
+    }
+    .alert.error   { background: rgba(248,81,73,0.1);  border-color: var(--error);   color: var(--error); }
+    .alert.success { background: rgba(63,185,80,0.1);  border-color: var(--success); color: var(--success); }
+
+    /* Results */
+    #results { display: none; }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .meta-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-chip span { color: var(--text); font-weight: 600; }
+    .meta-chip.filter-active {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+    .meta-chip.filter-active span { color: var(--accent2); }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead tr {
+      border-bottom: 1px solid var(--border);
+    }
+    thead th {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      text-align: right;
+    }
+    thead th:first-child { text-align: left; }
+    tbody tr {
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody tr:last-child { border-bottom: none; }
+    td {
+      padding: 12px 12px;
+      text-align: right;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    td:first-child {
+      text-align: left;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .pct-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    .pct-badge.low  { background: rgba(63,185,80,0.15);  color: var(--success); }
+    .pct-badge.mid  { background: rgba(210,153,34,0.15); color: var(--warning); }
+    .pct-badge.high { background: rgba(248,81,73,0.15);  color: var(--error); }
+
+    /* Download button */
+    #download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    #download-btn:hover {
+      background: rgba(0,212,170,0.1);
+      box-shadow: 0 0 20px rgba(0,212,170,0.2);
+    }
+
+    /* Reset link */
+    #reset-btn {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    #reset-btn:hover { color: var(--text); }
+
+    /* Footer */
+    footer {
+      margin-top: 40px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Responsive: stack date fields on very small screens */
+    @media (max-width: 420px) {
+      .date-range-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <nav style="display:flex;gap:8px;margin-bottom:32px;">
+    <a href="/" style="font-family:&apos;IBM Plex Mono&apos;,monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:6px;border:1px solid var(--accent);background:rgba(0,212,170,0.1);color:var(--accent);text-decoration:none;">AGE_24 Processor</a>
+    <a href="/summary" style="font-family:&apos;IBM Plex Mono&apos;,monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border-radius:6px;border:1px solid var(--border);color:var(--muted);text-decoration:none;">Payment Summary</a>
+  </nav>
+  <header>
+    <div class="tag">AR Analytics Tool</div>
+    <h1>AGE_24 Processor</h1>
+    <p>Upload your Excel file — the Summary sheet is updated automatically and returned for download.</p>
+  </header>
+
+  <!-- Upload card -->
+  <div class="card" id="upload-card">
+    <div class="card-header"><div class="dot"></div>UPLOAD FILE</div>
+    <div class="card-body">
+
+      <div id="drop-zone">
+        <span class="icon">📊</span>
+        <div class="main-text">Drop your Excel file here</div>
+        <div class="sub-text">or click to browse &nbsp;·&nbsp; accepts <span>.xlsx</span> only</div>
+        <input type="file" id="file-input" accept=".xlsx" />
+      </div>
+
+      <div id="selected-file">
+        <div class="file-icon">📗</div>
+        <div class="file-info">
+          <div class="file-name" id="fname">—</div>
+          <div class="file-size" id="fsize">—</div>
+        </div>
+        <button id="clear-btn" title="Remove file">✕</button>
+      </div>
+
+      <!-- ── Date range filter ─────────────────────────────────────────────── -->
+      <div class="date-range-row">
+        <div class="date-field">
+          <label for="report-date">📅 Report Date (Summary column)</label>
+          <input type="date" id="report-date" />
+        </div>
+      </div>
+      <div class="date-range-hint">Report date — identifies which column in the Summary sheet to update. Leave blank to auto-detect from sheet name or use today's date.</div>
+      <div class="date-range-row" style="margin-top:14px;">
+        <div class="date-field">
+          <label for="start-date">Start Date (svc_date ≥)</label>
+          <input type="date" id="start-date" />
+        </div>
+        <div class="date-field">
+          <label for="end-date">End Date (svc_date ≤)</label>
+          <input type="date" id="end-date" />
+        </div>
+      </div>
+      <div class="date-range-hint">Optional service date filter — leave blank to include all service dates.</div>
+      <!-- ── end date range ────────────────────────────────────────────────── -->
+
+      <button id="process-btn" disabled>
+        <span id="btn-label">▶ &nbsp;PROCESS FILE</span>
+      </button>
+
+      <div id="progress-wrap">
+        <div class="progress-label">Processing...</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="alert error" id="err-alert"></div>
+    </div>
+  </div>
+
+  <!-- Results card -->
+  <div class="card" id="results">
+    <div class="card-header"><div class="dot"></div>PROCESSING SUMMARY</div>
+    <div class="card-body">
+
+      <div class="meta-row" id="meta-row"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Total AR</th>
+            <th>% Over 120</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+
+      <a id="download-btn" href="#">⬇ &nbsp;DOWNLOAD UPDATED EXCEL</a>
+      <span id="reset-btn">← Process another file</span>
+    </div>
+  </div>
+
+</div>
+
+<footer>AGE_24 Web Processor &nbsp;·&nbsp; runs on your local network</footer>
+
+<script>
+  const dropZone    = document.getElementById('drop-zone');
+  const fileInput   = document.getElementById('file-input');
+  const selectedDiv = document.getElementById('selected-file');
+  const fnameEl     = document.getElementById('fname');
+  const fsizeEl     = document.getElementById('fsize');
+  const clearBtn    = document.getElementById('clear-btn');
+  const processBtn  = document.getElementById('process-btn');
+  const btnLabel    = document.getElementById('btn-label');
+  const progressW   = document.getElementById('progress-wrap');
+  const progressF   = document.getElementById('progress-fill');
+  const errAlert    = document.getElementById('err-alert');
+  const resultsCard = document.getElementById('results');
+  const metaRow     = document.getElementById('meta-row');
+  const tbody       = document.getElementById('results-tbody');
+  const downloadBtn = document.getElementById('download-btn');
+  const resetBtn    = document.getElementById('reset-btn');
+  const startDateEl = document.getElementById('start-date');
+  const endDateEl   = document.getElementById('end-date');
+  const reportDateEl = document.getElementById('report-date');
+
+  let selectedFile = null;
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(2) + ' MB';
+  }
+
+  function setFile(f) {
+    if (!f || !f.name.endsWith('.xlsx')) {
+      showError('Please select an .xlsx file.');
+      return;
+    }
+    selectedFile = f;
+    fnameEl.textContent = f.name;
+    fsizeEl.textContent = fmtSize(f.size);
+    selectedDiv.style.display = 'flex';
+    processBtn.disabled = false;
+    hideError();
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    selectedDiv.style.display = 'none';
+    processBtn.disabled = true;
+    hideError();
+  }
+
+  function showError(msg) {
+    errAlert.textContent = '⚠  ' + msg;
+    errAlert.style.display = 'block';
+  }
+  function hideError() {
+    errAlert.style.display = 'none';
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+  clearBtn.addEventListener('click', clearFile);
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  // Animated progress
+  let progressTimer = null;
+  function startProgress() {
+    progressW.style.display = 'block';
+    let pct = 0;
+    progressF.style.width = '0%';
+    progressTimer = setInterval(() => {
+      pct = pct < 85 ? pct + Math.random() * 8 : pct + 0.3;
+      progressF.style.width = Math.min(pct, 92) + '%';
+    }, 200);
+  }
+  function finishProgress() {
+    clearInterval(progressTimer);
+    progressF.style.width = '100%';
+    setTimeout(() => { progressW.style.display = 'none'; progressF.style.width = '0%'; }, 500);
+  }
+
+  processBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    // ── Validate date inputs before sending ───────────────────────────────────
+    const startDate = startDateEl.value;  // 'YYYY-MM-DD' or ''
+    const endDate   = endDateEl.value;    // 'YYYY-MM-DD' or ''
+
+    if (startDate && endDate && startDate > endDate) {
+      showError('Start Date cannot be after End Date.');
+      return;
+    }
+
+    hideError();
+    processBtn.disabled = true;
+    btnLabel.textContent = '⏳  PROCESSING...';
+    startProgress();
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    // ── Append date range to the form payload (empty string = no filter) ──────
+    formData.append('start_date',  startDate);
+    formData.append('end_date',    endDate);
+    formData.append('report_date', reportDateEl.value);
+
+    try {
+      const resp = await fetch('/process', { method: 'POST', body: formData });
+      const data = await resp.json();
+      finishProgress();
+
+      if (!data.success) {
+        showError(data.message);
+        processBtn.disabled = false;
+        btnLabel.textContent = '▶  PROCESS FILE';
+        return;
+      }
+
+      renderResults(data.summary, data.token);
+    } catch (e) {
+      finishProgress();
+      showError('Network error: ' + e.message);
+      processBtn.disabled = false;
+      btnLabel.textContent = '▶  PROCESS FILE';
+    }
+  });
+
+  function pctClass(p) {
+    if (p < 15) return 'low';
+    if (p < 30) return 'mid';
+    return 'high';
+  }
+
+  function fmtMoney(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderResults(s, token) {
+    // Base chips
+    let chipsHtml = `
+      <div class="meta-chip">Sheet: <span>${s.sheet}</span></div>
+      <div class="meta-chip">Report date: <span>${s.report_date || s.date}</span></div>
+      <div class="meta-chip">Date column: <span>${s.col_letter}</span></div>
+      <div class="meta-chip">Rows processed: <span>${s.rows.toLocaleString()}</span></div>
+    `;
+
+    // Show date filter chip only when a filter was applied
+    if (s.date_filter) {
+      chipsHtml += `<div class="meta-chip filter-active">svc_date filter: <span>${s.date_filter}</span></div>`;
+    }
+
+    metaRow.innerHTML = chipsHtml;
+
+    tbody.innerHTML = s.categories.map(c => `
+      <tr>
+        <td>${c.name}</td>
+        <td>${fmtMoney(c.total)}</td>
+        <td><span class="pct-badge ${pctClass(c.pct)}">${c.pct.toFixed(2)}%</span></td>
+      </tr>
+    `).join('');
+
+    downloadBtn.href = '/download/' + token;
+
+    resultsCard.style.display = 'block';
+    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  resetBtn.addEventListener('click', () => {
+    clearFile();
+    startDateEl.value  = '';
+    endDateEl.value    = '';
+    reportDateEl.value = '';
+    processBtn.disabled = true;
+    btnLabel.textContent = '▶  PROCESS FILE';
+    resultsCard.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>
