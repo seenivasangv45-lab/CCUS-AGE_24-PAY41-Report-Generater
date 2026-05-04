@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Summary Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #00d4aa;
+      --accent2: #0096ff;
+      --accent3: #f78166;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --error: #f85149;
+      --success: #3fb950;
+      --warning: #d29922;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 780px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Nav ── */
+    .nav-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .nav-link {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .nav-link:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-link.active {
+      background: rgba(0,212,170,0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 40px;
+      border-left: 3px solid var(--accent3);
+      padding-left: 18px;
+    }
+    header .tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--accent3);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+    header p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); }
+    .card-body { padding: 24px 20px; }
+
+    /* Requirements info */
+    .req-box {
+      background: rgba(247,129,102,0.07);
+      border: 1px solid rgba(247,129,102,0.25);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .req-box strong { color: var(--accent3); font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+    .req-box ul { margin-top: 8px; padding-left: 20px; line-height: 1.8; }
+    .req-box li span { font-family: 'IBM Plex Mono', monospace; color: var(--text); font-size: 12px; }
+
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--accent3);
+      background: rgba(247,129,102,0.05);
+    }
+    #drop-zone .icon { font-size: 36px; margin-bottom: 12px; display: block; }
+    #drop-zone .main-text { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    #drop-zone .sub-text { font-size: 13px; color: var(--muted); }
+    #drop-zone .sub-text span { color: var(--accent3); font-family: 'IBM Plex Mono', monospace; }
+    #file-input { display: none; }
+
+    #selected-file {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: rgba(247,129,102,0.08);
+      border: 1px solid rgba(247,129,102,0.3);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 16px;
+    }
+    #selected-file .file-icon { font-size: 22px; }
+    #selected-file .file-info { flex: 1; }
+    #selected-file .file-name {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px; font-weight: 600; color: var(--accent3);
+    }
+    #selected-file .file-size { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    #clear-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 18px; padding: 4px; border-radius: 4px; line-height: 1; transition: color 0.15s;
+    }
+    #clear-btn:hover { color: var(--error); }
+
+    /* Process button */
+    #process-btn {
+      width: 100%; margin-top: 20px; padding: 14px;
+      background: var(--accent3); color: #000;
+      border: none; border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px; font-weight: 600; letter-spacing: 1px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    #process-btn:hover:not(:disabled) {
+      background: #ff9580;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(247,129,102,0.3);
+    }
+    #process-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+    /* Progress */
+    #progress-wrap { display: none; margin-top: 16px; }
+    .progress-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .progress-bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent3), var(--accent2));
+      border-radius: 2px; transition: width 0.3s ease;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0%{filter:brightness(1)} 50%{filter:brightness(1.3)} 100%{filter:brightness(1)} }
+
+    /* Alert */
+    .alert { display:none; padding:12px 16px; border-radius:6px; font-size:13px; margin-top:16px; font-family:'IBM Plex Mono',monospace; border-left:3px solid; }
+    .alert.error   { background:rgba(248,81,73,0.1);  border-color:var(--error);   color:var(--error); }
+    .alert.success { background:rgba(63,185,80,0.1);  border-color:var(--success); color:var(--success); }
+
+    /* Results */
+    #results { display: none; }
+
+    .meta-row { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+    .meta-chip {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 14px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
+    }
+    .meta-chip span { color: var(--text); font-weight: 600; }
+
+    /* Category cards grid */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .cat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 3px solid var(--accent3);
+      transition: border-color 0.2s;
+    }
+    .cat-card:hover { border-color: var(--accent); }
+    .cat-name {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .cat-stats {
+      display: flex;
+      gap: 16px;
+    }
+    .cat-stat { flex: 1; }
+    .cat-stat-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+    .cat-stat-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .cat-divider { width: 1px; background: var(--border); }
+
+    /* Colour accents per category */
+    .cat-card[data-cat="DME Medicare"]   { border-left-color: #4472C4; }
+    .cat-card[data-cat="DME Commercial"] { border-left-color: #ED7D31; }
+    .cat-card[data-cat="WC & MVA"]       { border-left-color: #A9D18E; }
+    .cat-card[data-cat="EPS"]            { border-left-color: #FFC000; }
+
+    /* Download button */
+    #download-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 14px; margin-top: 8px;
+      background: transparent; color: var(--accent3);
+      border: 1px solid var(--accent3); border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600;
+      letter-spacing: 1px; cursor: pointer; text-decoration: none; transition: all 0.2s;
+    }
+    #download-btn:hover { background: rgba(247,129,102,0.1); box-shadow: 0 0 20px rgba(247,129,102,0.2); }
+
+    #reset-btn {
+      display: block; text-align: center; margin-top: 12px;
+      color: var(--muted); font-size: 13px; cursor: pointer; text-decoration: underline;
+    }
+    #reset-btn:hover { color: var(--text); }
+
+    footer {
+      margin-top: 40px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: var(--muted); text-align: center;
+    }
+
+    @media (max-width: 480px) { .cat-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Nav -->
+  <nav class="nav-bar">
+    <a href="/" class="nav-link">AGE_24 Processor</a>
+    <a href="/summary" class="nav-link active">Payment Summary</a>
+  </nav>
+
+  <header>
+    <div class="tag">Payment Report Tool</div>
+    <h1>Payment Summary Generator</h1>
+    <p>Upload your raw payment Excel file — category sheets with charts are generated automatically.</p>
+  </header>
+
+  <!-- Upload card -->
+  <div class="card" id="upload-card">
+    <div class="card-header"><div class="dot"></div>UPLOAD FILE</div>
+    <div class="card-body">
+
+      <div class="req-box">
+        <strong>REQUIRED SHEET IN YOUR FILE</strong>
+        <ul>
+          <li><span>Any sheet containing "PAY_41"</span> — raw payment data with columns: Svc_Date, Trans_Date, Proc_Code, Financial_Class, Payment (e.g. <span>PAY_41_TotalPaymentByDetail (5)</span>)</li>
+        </ul>
+        <div style="margin-top:10px;font-size:12px;">ℹ️ DME Commercial codes are built-in — no separate HCPCS sheet required.</div>
+      </div>
+
+      <div id="drop-zone">
+        <span class="icon">📋</span>
+        <div class="main-text">Drop your Excel file here</div>
+        <div class="sub-text">or click to browse &nbsp;·&nbsp; accepts <span>.xlsx</span> only</div>
+        <input type="file" id="file-input" accept=".xlsx" />
+      </div>
+
+      <div id="selected-file">
+        <div class="file-icon">📗</div>
+        <div class="file-info">
+          <div class="file-name" id="fname">—</div>
+          <div class="file-size" id="fsize">—</div>
+        </div>
+        <button id="clear-btn" title="Remove file">✕</button>
+      </div>
+
+      <button id="process-btn" disabled>
+        <span id="btn-label">▶ &nbsp;GENERATE SUMMARY</span>
+      </button>
+
+      <div id="progress-wrap">
+        <div class="progress-label">Generating category sheets and charts...</div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      </div>
+
+      <div class="alert error" id="err-alert"></div>
+    </div>
+  </div>
+
+  <!-- Results card -->
+  <div class="card" id="results">
+    <div class="card-header"><div class="dot"></div>GENERATION SUMMARY</div>
+    <div class="card-body">
+
+      <div class="meta-row" id="meta-row"></div>
+      <div class="cat-grid" id="cat-grid"></div>
+
+      <a id="download-btn" href="#">⬇ &nbsp;DOWNLOAD PAYMENT SUMMARY EXCEL</a>
+      <span id="reset-btn">← Generate another file</span>
+    </div>
+  </div>
+
+</div>
+
+<footer>Payment Summary Generator &nbsp;·&nbsp; AGE_24 Web Processor Suite</footer>
+
+<script>
+  const dropZone    = document.getElementById('drop-zone');
+  const fileInput   = document.getElementById('file-input');
+  const selectedDiv = document.getElementById('selected-file');
+  const fnameEl     = document.getElementById('fname');
+  const fsizeEl     = document.getElementById('fsize');
+  const clearBtn    = document.getElementById('clear-btn');
+  const processBtn  = document.getElementById('process-btn');
+  const btnLabel    = document.getElementById('btn-label');
+  const progressW   = document.getElementById('progress-wrap');
+  const progressF   = document.getElementById('progress-fill');
+  const errAlert    = document.getElementById('err-alert');
+  const resultsCard = document.getElementById('results');
+  const metaRow     = document.getElementById('meta-row');
+  const catGrid     = document.getElementById('cat-grid');
+  const downloadBtn = document.getElementById('download-btn');
+  const resetBtn    = document.getElementById('reset-btn');
+
+  let selectedFile = null;
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(2) + ' MB';
+  }
+
+  function setFile(f) {
+    if (!f || !f.name.endsWith('.xlsx')) { showError('Please select an .xlsx file.'); return; }
+    selectedFile = f;
+    fnameEl.textContent = f.name;
+    fsizeEl.textContent = fmtSize(f.size);
+    selectedDiv.style.display = 'flex';
+    processBtn.disabled = false;
+    hideError();
+  }
+
+  function clearFile() {
+    selectedFile = null; fileInput.value = '';
+    selectedDiv.style.display = 'none'; processBtn.disabled = true; hideError();
+  }
+
+  function showError(msg) { errAlert.textContent = '⚠  ' + msg; errAlert.style.display = 'block'; }
+  function hideError()    { errAlert.style.display = 'none'; }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+  clearBtn.addEventListener('click', clearFile);
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  let progressTimer = null;
+  function startProgress() {
+    progressW.style.display = 'block'; let pct = 0; progressF.style.width = '0%';
+    progressTimer = setInterval(() => {
+      pct = pct < 85 ? pct + Math.random() * 6 : pct + 0.2;
+      progressF.style.width = Math.min(pct, 92) + '%';
+    }, 250);
+  }
+  function finishProgress() {
+    clearInterval(progressTimer); progressF.style.width = '100%';
+    setTimeout(() => { progressW.style.display = 'none'; progressF.style.width = '0%'; }, 500);
+  }
+
+  processBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    hideError();
+    processBtn.disabled = true; btnLabel.textContent = '⏳  GENERATING...';
+    startProgress();
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    try {
+      const resp = await fetch('/process-summary', { method: 'POST', body: formData });
+      const data = await resp.json();
+      finishProgress();
+      if (!data.success) {
+        showError(data.message);
+        processBtn.disabled = false; btnLabel.textContent = '▶  GENERATE SUMMARY';
+        return;
+      }
+      renderResults(data.summary, data.token);
+    } catch (e) {
+      finishProgress(); showError('Network error: ' + e.message);
+      processBtn.disabled = false; btnLabel.textContent = '▶  GENERATE SUMMARY';
+    }
+  });
+
+  const CAT_COLOURS = {
+    "DME Medicare":   "#4472C4",
+    "DME Commercial": "#ED7D31",
+    "WC & MVA":       "#A9D18E",
+    "EPS":            "#FFC000"
+  };
+
+  function renderResults(s, token) {
+    metaRow.innerHTML = `
+      <div class="meta-chip">Sheet found: <span>${s.pay_sheet || 'PAY_41'}</span></div>
+      <div class="meta-chip">Sheets generated: <span>${s.categories.length}</span></div>
+      <div class="meta-chip">DME codes (built-in): <span>${s.hcpcs_count}</span></div>
+    `;
+
+    catGrid.innerHTML = s.categories.map(c => `
+      <div class="cat-card" data-cat="${c.name}">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-stats">
+          <div class="cat-stat">
+            <div class="cat-stat-val">${c.dos_rows}</div>
+            <div class="cat-stat-lbl">DOS rows</div>
+          </div>
+          <div class="cat-divider"></div>
+          <div class="cat-stat">
+            <div class="cat-stat-val">${c.trans_cols}</div>
+            <div class="cat-stat-lbl">Trans-date cols</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    downloadBtn.href = '/download-summary/' + token;
+    resultsCard.style.display = 'block';
+    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  resetBtn.addEventListener('click', () => {
+    clearFile();
+    processBtn.disabled = true; btnLabel.textContent = '▶  GENERATE SUMMARY';
+    resultsCard.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>
